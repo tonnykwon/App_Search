@@ -81,7 +81,24 @@ Now, we are ready to put query and search. Use search function to find applicati
 ``` python
 s.search('facebook')
 ```
-![](facebook.png)
+![](./facebook.png)
+
+Or we can try 'excel'
+``` python
+s.search('excel')
+```
+![](./excel.png)
+
+Suppose we already have some applications on the phone, such as Microsoft word, edge, launcher(app key number 7, 61282, 17236 each). Each application is represented on vector space, the mean value of them represent my preference. \
+``` python
+query = 'excel'
+app_list= [7,61282,17236]
+s.app_list(app_list)
+s.search(query)
+```
+![](./micro_excel.png)
+
+Thus, this will give Microsoft excel rank higher than just typing excel only. \
 
 
 
