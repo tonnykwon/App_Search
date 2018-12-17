@@ -1,0 +1,124 @@
+---
+title: "process_data"
+author: "kwon"
+date: '2018 11 14 '
+output: html_document
+---
+
+## setup
+```{r setup}
+source("/Users/kwonyoung-ju/Documents/tand/macaron/R/read_paraquet.R")
+library(lubridate)
+require(reshape2)
+require(sparklyr)
+require(dplyr)
+require(tidyr)
+require(DBI)
+require(sparklyr.nested)
+```
+
+## Read data
+```{r read}
+config = list("sparklyr.shell.executor-memory"="8g",
+"sparklyr.shell.driver-memory"="8g")
+sc <- spark_connect(master = "local")
+
+filenames ="/Users/kwonyoung-ju/Documents/tand/macaron/paraquet/2018{0[7-9],10,11}/*"
+data  = sparklyr::spark_read_parquet(sc, name="tmp_sdf", path = filenames, memory=FALSE)
+data %>% select(dump_date) %>% distinct() %>% filter(dump_date> "2018-11-01")
+src_tbls(sc)
+```
+
+
+## process
+```{r process}
+# get list for each day
+# lazy evaluation: not executed yet
+data_list = data %>%
+  group_by(adid, dump_date) %>%
+  summarise(app_list = collect_list(app_id), country= first_value(country))
+
+# get first, and last date
+data_list = data_list %>%
+  group_by(adid) %>%
+  filter(dump_date ==min(dump_date, na.rm=T) | dump_date == max(dump_date, na.rm=T)) %>%
+  mutate(first_date = min(dump_date, na.rm=T), last_date = max(dump_date, na.rm=T)) %>%
+  filter(first_date!=last_date) %>%
+  sdf_register("data_list_sdf")
+
+# tbl_cache(sc, "data_list_sdf") # load data on memory(faster)
+
+# condition first and last app_list into new variables
+data_list2 = data_list %>%
+  group_by(adid) %>%
+  mutate(first_app = ifelse(dump_date==first_date, app_list, NULL), last_app =  ifelse(dump_date==last_date, app_list, NULL)) %>%
+  select (adid, dump_date, app_list, first_app, last_app, country)%>%
+  # then collect list of first date, and last date
+  group_by(adid) %>%
+  summarise(first_app = collect_list(first_app), last_app = collect_list(last_app), date = min(dump_date, na.rm=T), country= first_value(country))
+
+tbl_cache(sc, "data_list2") 
+
+# get first date app list enumerated with flags = 0
+data_list_f = data_list2 %>%
+  sdf_explode(first_app) %>%
+  sdf_explode(first_app) %>%
+  mutate(flag=0) %>%
+  select(adid, dump_date = date, country, app_id=first_app, flag)
+
+# get last date app list enumerated with flags = 1
+data_list_l = data_list2 %>%
+  sdf_explode(last_app) %>%
+  sdf_explode(last_app) %>%
+  mutate(flag=1) %>%
+  select(adid, dump_date = date, country, app_id= last_app, flag)
+
+# first intersect last app list
+data_list_0 = data_list_f %>%
+  left_join(data_list_l, by=c("adid", "dump_date", "app_id", "country") ) %>% 
+  select(adid, dump_date, country, app_id, flag = flag.x)
+
+# last - first app list
+data_list_1 = data_list_l %>%
+  anti_join(data_list_f, by=c("adid", "dump_date", "app_id") ) %>% 
+  select(adid, dump_date, country, app_id, flag) %>%
+  sdf_register("data_list_1")
+
+# remove adid whom has no change
+adid_list = data_list_1 %>%
+  group_by(adid) %>%
+  summarise()
+
+data_list_0 = adid_list %>%
+  left_join(data_list_0, by="adid") %>%
+  select(adid, dump_date, country, app_id, flag) %>%
+  sdf_register("data_list_0")
+
+# train, test split
+full_data = data_list_0 %>%
+  rbind(data_list_1) %>%
+  group_by(adid) %>%
+  sdf_register("full_data")
+
+train_data = full_data %>%
+  filter(dump_date<="2018-10-31") %>%
+  sdf_register("train_data")
+
+test_data = full_data %>%
+  filter(dump_date>"2018-10-31") %>%
+  sdf_register("test_data")
+
+# check 
+# id =  "001097f6-350d-4651-b78f-71582e914377"
+# temp0 = data_list_0 %>% filter(adid==id) %>% collect()
+# temp1 = data_list_1 %>% filter(adid==id) %>% collect()
+
+```
+
+## save data
+```{r}
+path = "/Users/kwonyoung-ju/Documents/tand/macaron/paraquet/"
+spark_write_csv(x = train_data, path= paste0(path, "train_data"))
+spark_write_csv(x = test_data, path= paste0(path, "test_data"))
+spark_disconnect_all()
+```
