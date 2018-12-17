@@ -81,7 +81,7 @@ Now, we are ready to put query and search. Use search function to find applicati
 ``` python
 s.search('facebook')
 ```
-
+![](facebook.png)
 
 
 
