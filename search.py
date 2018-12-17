@@ -101,7 +101,7 @@ class app_search:
             vec_result = self.vector_similarity(sorted_result)
             vec_result['mix']= vec_result['bm_score']*bm_ratio+vec_result['score']+vec_result['vec_sim']
             sorted_vec_result = vec_result.sort_values('mix', ascending=False)
-            return sorted_vec_result[:,['appTitle', 'app_id']][:n]
+            return sorted_vec_result.loc[:,['appTitle', 'app_id']][:n]
         else:
             return sorted_result.loc[:,['appTitle', 'app_id']][:n]
 
