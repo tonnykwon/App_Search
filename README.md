@@ -36,28 +36,58 @@ This notebook is to train and test word2vec through data processed by spark_proc
 
 #### functions.py
 This python file contains functions needed to preprocess app description file. \
-stopword(corpus, path): this function takes stopword path, and remove stopwords such as '%', '.', or other unnecessary letters. \
-inverted_index(corpus, min=1, max=10): this function creates inverted index of corpus by using collecionts defaultdict packages. min and max 
+`stopword(corpus, path)`: this function takes stopword path, and remove stopwords such as '%', '.', or other unnecessary letters. \
+`inverted_index(corpus, min=1, max=10)`: this function creates inverted index of corpus by using collecionts defaultdict packages. min and max 
 specify min or max length of words. It returns dictionary of word and index list. For instance, {'word':[1,3, 5,12,...]}. \
-bm25(query, inv_idx, doc_len, k=2.7, b=0.75): bm25 gets bm25 score of each document(*app description*) for the given query. inv_idx is inverted index created from inverted_index function, while k, and b are parameters. It returns pandas dataframe of two columns, index of result, and score. \
-tfidf_search(query, vectorizer, tf_idf_matrix):tfidf_search gets score of each document(*app title*) for the given query.
+`bm25(query, inv_idx, doc_len, k=2.7, b=0.75)`: bm25 gets bm25 score of each document(*app description*) for the given query. inv_idx is inverted index created from inverted_index function, while k, and b are parameters. It returns pandas dataframe of two columns, index of result, and score. \
+`tfidf_search(query, vectorizer, tf_idf_matrix)`:tfidf_search gets score of each document(*app title*) for the given query.
 
 #### search.py
 This file contains app_search class, which is used for actual searching. \
-search(self, query, n = 20): search function uses bm25, and tfidf_search for ranking each app description and app title, and get overall scores of each document. It returns search result of sorted score. \
-app_list(self, input_list): app_list takes list of app key number(which is on meta data), and gets the mean vector value of app lists. This mean value vector represents user's preference, which is sued for search function if app list exists.
+`search(self, query, n = 20)`: search function uses bm25, and tfidf_search for ranking each app description and app title, and get overall scores of each document. It returns search result of sorted score. \
+`app_list(self, input_list)`: app_list takes list of app key number(which is on meta data), and gets the mean vector value of app lists. This mean value vector represents user's preference, which is sued for search function if app list exists.
 
 ## Install and run
-First upgrade pip.
-``` python
+Install python 3 on the website: \
+https://www.python.org/downloads/ \
+
+Upgrade pip on command line.
+``` cmd
 pip install --upgrade pip
 ```
 Then, install `sklearn`, `gensim` packages.
-``` python
+``` cmd
 pip install sklearn
 pip install gensim
 ```
+And download github files.
+```cmd
+git clone https://github.com/tonnykwon/App_Search
+```
+
 Download dataset from dropbox. \
 https://www.dropbox.com/s/fvkcn0szmmb4y9j/data.zip?dl=0 \
+Unzip data file, and put data folder in data folder into App_search folder. \
+For instance, data should look like `App_search/data/android_meta.csv`.
+
+Go back to command line, and start search python script. \
+Then load app_search class, this will take some time as it load all inverted index, and meta data.
+``` python
+python -i search.py
+s = app_search()
+```
+
+Now, we are ready to put query and search. Use search function to find applications.
+``` python
+s.search('facebook')
+```
+
+
+
+
+
+
+
+
 
 
